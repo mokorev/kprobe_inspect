@@ -11,10 +11,13 @@ typedef int (*insn_decode_t)(struct insn* insn,const void* ptr,int bufsz,enum in
 
 static unsigned char* get_base(struct kprobe_nearby* kp,int i){
 	if(!kp->kp.addr){
-		return NULL;
+		if(kp->kp.symbol_name){
+			register_kprobe(&(kp->kp));
+			unregister_kprobe(&(kp->kp));
+		}else return NULL;
 	}
-        kp->info[i].addr = (unsigned char*)kp->kp.addr;
-        unsigned char* base = (unsigned char*)kp->kp.addr;
+	kp->info[i].addr = (unsigned char*)kp->kp.addr;
+    unsigned char* base = (unsigned char*)kp->kp.addr;
 	return base;
 }
 
