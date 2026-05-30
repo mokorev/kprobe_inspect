@@ -1,7 +1,7 @@
 #include <linux/kprobes.h>
 #include <asm/insn.h>
 
-#include "test_kprobe_scan.h"
+#include "test_kprobe_inspect.h"
 
 #define MAX_INSN_NUM 1024
 #define SERONUMBER 1
