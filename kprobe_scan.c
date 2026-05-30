@@ -42,7 +42,7 @@ static int kprobe_nearby_next(struct kprobe_nearby* kp,int i){
 	insn_init(&insn,(const void*)base,MAX_INSN_SIZE,x86_64);
 	insn_get_length(&insn);
 	kp->info[i].length = insn.length;
-	kp->next = (unsigned char*)(base+kp->info[i].length)
+	kp->next = (unsigned char*)(base+kp->info[i].length);
 	return 0;
 }
 
@@ -62,7 +62,7 @@ int kprobe_scan_init(struct kprobe_nearby* kp,int num){
 		if(kprobe_nearby_next(kp,i)){
 			return -NOADDR;
 		}
-		current_off += kp->info[i].length
+		current_off += kp->info[i].length;
 		kp->info[i].offset = current_off;
 		if(i=num-1){
 			kp->next = NULL;
@@ -78,7 +78,7 @@ int register_batch(struct kprobe_nearby* kp){
 	}
 	while(kp->next!=NULL){
 		index++;
-		kp->kp.addr = (kprobe_opcode_t*)kp->next
+		kp->kp.addr = (kprobe_opcode_t*)kp->next;
 		if(register_handler(&(kp->kp) !=0)){
 			printk(KERN_ERR "kprobe_register_batch's kp->kp [%d] is error\n",index);
 			return register_handler(&(kp->kp));
