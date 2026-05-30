@@ -52,7 +52,9 @@ static unsigned long get_insn_decode(void){
 
 
 int kprobe_scan_init(struct kprobe_nearby* kp,int num){
-	memset(kp,0,sizeof(struct kprobe_nearby) + num * sizeof(struct more_info));
+	if(kp != NULL){
+		memset(kp,0,sizeof(struct kprobe_nearby) + num * sizeof(struct more_info));
+	}
 	if(num < 0){
 	num = -num;
 	}
