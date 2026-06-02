@@ -5,7 +5,20 @@ A lightweight Linux kernel tool that automatically scans instruction boundaries 
 
 ## Because of a register error, I decided to create a tool that can quickly scan a range of instructions and batch‑register probes.
 
+---
 
+## When can this tool dramatically improve your efficiency?
+
+- **Pinpoint the exact instruction during a system crash**  
+  When a crash occurs, you often only know which function failed, but not the exact instruction – especially when registers are unexpectedly corrupted. `kprobe_inspect` automatically handles instruction and function boundaries, supports up to 1024 instructions, and lets you cover any suspicious instruction range with one click.
+
+- **Instruction‑level trace for vulnerability analysis and reproduction**  
+  When you need to trace a vulnerable function instruction by instruction, `kprobe_inspect` acts as an automated precision microscope, freeing you from tedious “ground‑sweeping” work and allowing you to focus on the real problematic instructions.
+
+- **When eBPF’s performance overhead is too high for a large number of probes**  
+  If you need many probes and eBPF’s overhead becomes a bottleneck, give `kprobe_inspect` a try. It will not be slower than eBPF, and the author will continue to optimize its performance.
+
+---
 
 ## What you should care about – the biggest advantage
 
@@ -107,5 +120,20 @@ Contributions are welcome! Please feel free to submit issues, feature requests, 
 - **Reporting bugs**: Provide your kernel version, architecture, and a minimal test case.
 - **Code contributions**: Follow the existing coding style and ensure `make` compiles without warnings.
 - **Adding support for other architectures**: The instruction decoder (`insn`) is x86‑only for now; ARM64 or RISC‑V support would be a great addition.
+---
+##  ⚠️Important: Never call kprobe_inspect functions from within kprobe handlers
 
+The functions provided by `kprobe_inspect` (e.g., `kprobe_scan`, `register_batch`, `unregister_batch`, `kprobe_release`) **must not** be called from your `pre_handler` or `post_handler`. These handlers run in atomic context (interrupts disabled, possibly holding locks). Calling functions that may sleep (`kmalloc`, `insn_decode`, etc.) or that modify kprobe state will lead to kernel crashes, deadlocks, or undefined behavior.
+
+**Safe actions inside handlers:**  
+- Simple `printk` or `pr_info`.  
+- Reading registers.  
+- Incrementing counters (using atomic operations).  
+- Setting flags.
+
+**Unsafe actions (forbidden):**  
+- Any memory allocation (`kmalloc`).  
+- Any function that might sleep.  
+- Registering or unregistering kprobes.  
+- Calling any `kprobe_inspect` API function.
 
