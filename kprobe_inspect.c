@@ -41,6 +41,10 @@ int kprobe_nearby_scan(struct kprobe_nearby* kp,int num){
 		printk(KERN_ERR "please kmalloc for your kprobe_nearby struct!");
 		return -NOKMALLOC;
 	}
+	if(!kp->current_kp.addr){
+		pr_err("no current_kp.addr!\n");
+		return -NOADDR;
+	}
 	kprobe_init(&(kp->current_kp));
 	if(num < 0){
 		num = -num;
@@ -56,6 +60,7 @@ int kprobe_nearby_scan(struct kprobe_nearby* kp,int num){
 		printk(KERN_ERR "error from kprobe_nearby_scan's get_symaddr_from_name('kallsyms_lookup_size_offset')");
 		return lookup_size_addr;
 	}
+	pr_info("get lookup_size_addr!\n");
 	kallsyms_lookup_size_offset_t lookup_size = (kallsyms_lookup_size_offset_t)lookup_size_addr;
 	unsigned long target_size;
 	unsigned long target_offset;
@@ -65,43 +70,57 @@ int kprobe_nearby_scan(struct kprobe_nearby* kp,int num){
 		return result_lookup;
 	}
 	target_size -= target_offset;
+	pr_info("get the target's real size!it's: %d",target_size);
 	unsigned long insn_addr = get_symaddr_from_name("insn_decode");
-	if(unlikely(insn_addr<0)){
+	if(insn_addr<0){
 		printk(KERN_ERR "error from kprobe_nearby_scan's get_symaddr_from_name('insn_decode')\n");
 		return insn_addr;
 	}
+	pr_info("get the insn_addr!\n");
 	insn_decode_t insn_decode = (insn_decode_t)insn_addr;
 	unsigned long current_off = 0;
 	int i;
 	struct insn* insn;
+	insn = kmalloc(sizeof(struct insn),GFP_KERNEL);
+	if(!insn) return -NOKMALLOC;
+	memset(insn,0,sizeof(struct insn));
 	int ret;
 	ret = insn_decode(insn,(const void*)kp->current_kp.addr,MAX_INSN_SIZE,INSN_MODE_KERN);
+	pr_info("get the insn_decode's real number,it's %d\n",insn->length);
 	kp->info[0] = kmalloc(sizeof(struct more_info),GFP_KERNEL);
         memset(kp->info[0],0,sizeof(struct more_info));
 	kp->info[0]->kp.addr = kp->current_kp.addr;
 	kp->info[0]->length = insn->length;
 	kp->info[0]->offset = 0;
+	kp->info[0]->kp.pre_handler = kp->current_kp.pre_handler;
+	kp->info[0]->kp.post_handler = kp->current_kp.post_handler;
 	kp->count = 1;
-	struct kprobe temp_kp;
+	pr_info("current_kp.addr:%px, info[0]->kp.addr:%px,length:%d",kp->current_kp.addr,kp->info[0]->kp.addr,kp->info[0]->length);
+	unsigned char* cursor = (unsigned char*)kp->current_kp.addr;
 	for(i = 0;i+1 < num;i++){
-		kp->info[i+1] = kmalloc(sizeof(struct more_info),GFP_KERNEL);
-		memset(kp->info[i+1],0,sizeof(struct more_info));
-		temp_kp.addr = (kprobe_opcode_t*)((unsigned char*)kp->info[i]->kp.addr + kp->info[i]->length);
-        	ret = insn_decode(insn,(const void*)temp_kp.addr,MAX_INSN_SIZE,INSN_MODE_KERN);
+		cursor = (unsigned char*)kp->info[i]->kp.addr + kp->info[i]->length;
+		pr_info("temp_kp.add:%px\n",cursor);
+        	ret = insn_decode(insn,(const void*)cursor,MAX_INSN_SIZE,INSN_MODE_KERN);
         	if(ret<0){
                 	printk(KERN_ERR "insn_decode failed:%d\n",ret);
                 	return false;
 		}
-		if(current_off+insn->length >= target_size){
-                        printk(KERN_ERR "target's size is to short,the scan was scan %d",i+1);
+		if((current_off+insn->length) > target_size){
+                        printk(KERN_ERR "target's size is to short,the scan was scan %d\n",i+1);
                         return i+1;
                 }
-		kp->info[i+1]->kp.addr = temp_kp.addr;
-	        kp->info[i+1]->length = insn->length;
-        	current_off += kp->info[i+1]->length;
-		kp->info[i+1]->offset = current_off;
-		kp->count ++;
+		kp->info[i+1] = kmalloc(sizeof(struct more_info),GFP_KERNEL);
+		memset(kp->info[i+1],0,sizeof(struct more_info));
+		pr_info("insn->length:%d\n",insn->length);
+		kp->info[i+1]->kp.addr = (kprobe_opcode_t*)cursor;
+		kp->info[i+1]->length = insn->length;
+		kp->info[i+1]->offset = (long)(cursor-(unsigned char*)kp->current_kp.addr);
+		kp->info[i+1]->kp.pre_handler = kp->current_kp.pre_handler;
+		kp->info[i+1]->kp.post_handler = kp->current_kp.post_handler;
+		kp->count++;
+		pr_info("current_kp.addr:%px, info[%d]->kp.addr:%px,length:%d,offset:%d\n",kp->current_kp.addr,i+1,kp->info[i+1]->kp.addr,kp->info[i+1]->length,kp->info[i+1]->offset);
 	}
+	pr_info("count's num = %d\n",kp->count);
 	return 0;
 }
 
@@ -129,7 +148,6 @@ struct kprobe_nearby* kprobe_scan(struct kprobe* p,int num){
 	if(is_addr){
 		kp->current_kp.addr = (kprobe_opcode_t*)addr_p;
 	}else kp->current_kp.symbol_name = name_p;
-	kprobe_init(&(kp->current_kp));
 	int result = kprobe_nearby_scan(kp,num);
 	if(result>0){
 		printk(KERN_ERR "it's to short,only kprobe %d\n",result);
@@ -167,36 +185,43 @@ int register_batch(struct kprobe_nearby* kp){
 		return -FIRSTREGISTERED;
 	}
 	int result_register_first = register_kprobe(&(kp->info[0]->kp));
-	if(!result_register_first){
+	if(result_register_first != 0){
 		printk(KERN_ERR "kprobe_register_batch's kp->info->kp [0](current kp) is error\n");
 		return result_register_first;
 	}
-	int index;
-	for(index = 0;index+1 < kp->count;index++){
-		if(!kp->info[index+1]){
+	kp->info[0]->registered = true;
+	unsigned int index;
+	for(index = 1;index < kp->count;index++){
+		if(!kp->info[index]){
 			printk(KERN_ERR "register_batch's error is info[%d]!",index);
 			unmiss++;
+			printk(KERN_ERR "register_kprobe's unmiss is %d",unmiss);
 			continue;
 		}
-		if(kp->info[index+1]->registered){
+		if(kp->info[index]->registered){
 			printk(KERN_ERR "info[%d] is registered!unmiss+1!\n");
 			unmiss++;
+			printk(KERN_ERR "register_kprobe's unmiss is %d",unmiss);
 			continue;
 		}
-		if(register_kprobe(&kp->info[index+1]->kp)<0){
-			printk(KERN_ERR "kprobe_register_batch's kp->kp [%d] is error,the error code is:%d\n",index,register_kprobe(&(kp->info[index]->kp)));
-			unmiss++;
-			continue;
-			}
-		if(unlikely(register_kprobe(&(kp->info[index+1]->kp))) == 1){
-			printk(KERN_ERR "the info[%d] is be register_kprobe away from error code: 1\n");
-			unmiss++;
-			continue;
+		switch(register_kprobe(&kp->info[index]->kp)){
+			case 0:
+				kp->info[index]->registered = true;
+				break;
+			case 1:
+				printk(KERN_ERR "the info[%d] is be register_kprobe away from error code: 1\n");
+                        	unmiss++;
+				printk(KERN_ERR "register_kprobe's unmiss is %d",unmiss);
+                        	continue;
+				break;
+			default:
+				printk(KERN_ERR "kprobe_register_batch's kp->kp [%d] is error,the error code is:%d\n",index,register_kprobe(&(kp->info[index]->kp)));
+				unmiss++;
+				printk(KERN_ERR "register_kprobe's unmiss is %d",unmiss);
+				continue;
+				break;
 		}
-		register_kprobe(&(kp->info[index+1]->kp));
-		kp->info[index]->registered = true;
 	}
-	printk(KERN_INFO "register_kprobe's unmiss is %d",unmiss);
 	return 0;
 }
 
