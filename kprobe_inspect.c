@@ -60,7 +60,6 @@ int kprobe_nearby_scan(struct kprobe_nearby* kp,int num){
 		printk(KERN_ERR "error from kprobe_nearby_scan's get_symaddr_from_name('kallsyms_lookup_size_offset')");
 		return lookup_size_addr;
 	}
-	pr_info("get lookup_size_addr!\n");
 	kallsyms_lookup_size_offset_t lookup_size = (kallsyms_lookup_size_offset_t)lookup_size_addr;
 	unsigned long target_size;
 	unsigned long target_offset;
@@ -70,13 +69,11 @@ int kprobe_nearby_scan(struct kprobe_nearby* kp,int num){
 		return result_lookup;
 	}
 	target_size -= target_offset;
-	pr_info("get the target's real size!it's: %d",target_size);
 	unsigned long insn_addr = get_symaddr_from_name("insn_decode");
 	if(insn_addr<0){
 		printk(KERN_ERR "error from kprobe_nearby_scan's get_symaddr_from_name('insn_decode')\n");
 		return insn_addr;
 	}
-	pr_info("get the insn_addr!\n");
 	insn_decode_t insn_decode = (insn_decode_t)insn_addr;
 	unsigned long current_off = 0;
 	int i;
@@ -86,7 +83,6 @@ int kprobe_nearby_scan(struct kprobe_nearby* kp,int num){
 	memset(insn,0,sizeof(struct insn));
 	int ret;
 	ret = insn_decode(insn,(const void*)kp->current_kp.addr,MAX_INSN_SIZE,INSN_MODE_KERN);
-	pr_info("get the insn_decode's real number,it's %d\n",insn->length);
 	kp->info[0] = kmalloc(sizeof(struct more_info),GFP_KERNEL);
     memset(kp->info[0],0,sizeof(struct more_info));
 	kp->info[0]->kp.addr = kp->current_kp.addr;
@@ -95,11 +91,9 @@ int kprobe_nearby_scan(struct kprobe_nearby* kp,int num){
 	kp->info[0]->kp.pre_handler = kp->current_kp.pre_handler;
 	kp->info[0]->kp.post_handler = kp->current_kp.post_handler;
 	kp->count = 1;
-	pr_info("current_kp.addr:%px, info[0]->kp.addr:%px,length:%d",kp->current_kp.addr,kp->info[0]->kp.addr,kp->info[0]->length);
 	unsigned char* cursor = (unsigned char*)kp->current_kp.addr;
 	for(i = 0;i+1 < num;i++){
 		cursor = (unsigned char*)kp->info[i]->kp.addr + kp->info[i]->length;
-		pr_info("temp_kp.add:%px\n",cursor);
         ret = insn_decode(insn,(const void*)cursor,MAX_INSN_SIZE,INSN_MODE_KERN);
         if(ret<0){
                 printk(KERN_ERR "insn_decode failed:%d\n",ret);
@@ -111,14 +105,12 @@ int kprobe_nearby_scan(struct kprobe_nearby* kp,int num){
         }
 		kp->info[i+1] = kmalloc(sizeof(struct more_info),GFP_KERNEL);
 		memset(kp->info[i+1],0,sizeof(struct more_info));
-		pr_info("insn->length:%d\n",insn->length);
 		kp->info[i+1]->kp.addr = (kprobe_opcode_t*)cursor;
 		kp->info[i+1]->length = insn->length;
 		kp->info[i+1]->offset = (long)(cursor-(unsigned char*)kp->current_kp.addr);
 		kp->info[i+1]->kp.pre_handler = kp->current_kp.pre_handler;
 		kp->info[i+1]->kp.post_handler = kp->current_kp.post_handler;
 		kp->count++;
-		pr_info("current_kp.addr:%px, info[%d]->kp.addr:%px,length:%d,offset:%d\n",kp->current_kp.addr,i+1,kp->info[i+1]->kp.addr,kp->info[i+1]->length,kp->info[i+1]->offset);
 	}
 	pr_info("count's num = %d\n",kp->count);
 	return 0;
@@ -254,7 +246,7 @@ int kprobe_scan_release(struct kprobe_nearby* kp){
 		kfree(kp->info[list_num]);
 	}
 	kfree(kp);
-	printk(KERN_INFO "release's list has %d\n",list_num);
+	printk(KERN_INFO "release's list: %d\n",list_num);
 	return unregister_num;
 }
 
