@@ -26,6 +26,8 @@ A lightweight Linux kernel tool that automatically scans instruction boundaries 
 `kprobe_inspect` relies solely on the Linux kernel's built‑in `insn` decoder. No third‑party libraries, no extra dependencies, perfect consistency with the kernel’s own instruction interpretation.
 This lightweight, easy‑to‑use tool offers you just three core functions:  kprobe_scan, register_batch, and unregister_batch.
 
+**Tiny footprint.**
+ The core source file is only 8.44KB(less than 300 lines of code),making it easy to audit and integrate.
 
 Here’s a quick example to help you understand how to use it:
 ```c
