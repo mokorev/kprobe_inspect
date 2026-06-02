@@ -15,8 +15,8 @@ void kprobe_init(struct kprobe* kp){
         }
         if(!kp->symbol_name){
                 if(kp->addr){
-                        register_kprobe(kp);
-                        unregister_kprobe(kp);
+                    	register_kprobe(kp);
+                    	unregister_kprobe(kp);
                 }
         }
 }
@@ -88,7 +88,7 @@ int kprobe_nearby_scan(struct kprobe_nearby* kp,int num){
 	ret = insn_decode(insn,(const void*)kp->current_kp.addr,MAX_INSN_SIZE,INSN_MODE_KERN);
 	pr_info("get the insn_decode's real number,it's %d\n",insn->length);
 	kp->info[0] = kmalloc(sizeof(struct more_info),GFP_KERNEL);
-        memset(kp->info[0],0,sizeof(struct more_info));
+    memset(kp->info[0],0,sizeof(struct more_info));
 	kp->info[0]->kp.addr = kp->current_kp.addr;
 	kp->info[0]->length = insn->length;
 	kp->info[0]->offset = 0;
@@ -100,15 +100,15 @@ int kprobe_nearby_scan(struct kprobe_nearby* kp,int num){
 	for(i = 0;i+1 < num;i++){
 		cursor = (unsigned char*)kp->info[i]->kp.addr + kp->info[i]->length;
 		pr_info("temp_kp.add:%px\n",cursor);
-        	ret = insn_decode(insn,(const void*)cursor,MAX_INSN_SIZE,INSN_MODE_KERN);
-        	if(ret<0){
-                	printk(KERN_ERR "insn_decode failed:%d\n",ret);
-                	return false;
+        ret = insn_decode(insn,(const void*)cursor,MAX_INSN_SIZE,INSN_MODE_KERN);
+        if(ret<0){
+                printk(KERN_ERR "insn_decode failed:%d\n",ret);
+                return false;
 		}
 		if((current_off+insn->length) > target_size){
-                        printk(KERN_ERR "target's size is to short,the scan was scan %d\n",i+1);
-                        return i+1;
-                }
+                printk(KERN_ERR "target's size is to short,the scan was scan %d\n",i+1);
+                return i+1;
+        }
 		kp->info[i+1] = kmalloc(sizeof(struct more_info),GFP_KERNEL);
 		memset(kp->info[i+1],0,sizeof(struct more_info));
 		pr_info("insn->length:%d\n",insn->length);
