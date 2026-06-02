@@ -253,6 +253,7 @@ int kprobe_scan_release(struct kprobe_nearby* kp){
 		}
 		kfree(kp->info[list_num]);
 	}
+	kfree(kp);
 	printk(KERN_INFO "release's list has %d\n",list_num);
 	return unregister_num;
 }
